@@ -6,36 +6,46 @@ const CHAIN_ID = parseInt(process.env.CHAIN_ID);
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
 const TO_ADDRESS = process.env.TO_ADDRESS;
 const TIMEFRAME = parseInt(process.env.TIMEFRAME) || 30;
+const TX_COUNT = parseInt(process.env.TX_COUNT) || 5;
 
 const provider = new JsonRpcProvider(RPC_URL, CHAIN_ID);
 const wallet = new Wallet(PRIVATE_KEY, provider);
 
-async function sendNativeTx() {
+async function sendNativeTx(index) {
   try {
     const balance = await provider.getBalance(wallet.address);
-    console.log(`💰 Saldo saat ini: ${formatEther(balance)} ETH`);
+    console.log(`💰 [TX #${index + 1}] Saldo: ${formatEther(balance)} PHA`);
 
-    if (balance.lt(parseEther("0.0012"))) {
+    if (balance < parseEther("0.0012")) {
       console.log("⚠️ Saldo tidak cukup, skip transaksi.");
       return;
     }
 
     const tx = await wallet.sendTransaction({
       to: TO_ADDRESS,
-      value: parseEther(`${process.env.BALANCE || "0.001"}`),
+      value: parseEther("0.001"),
       gasLimit: 21000,
     });
 
-    console.log(`🚀 TX terkirim! Hash: ${tx.hash}`);
+    console.log(`🚀 [TX #${index + 1}] TX terkirim! Hash: ${tx.hash}`);
     const receipt = await tx.wait();
-    console.log(`✅ TX confirmed di block: ${receipt.blockNumber}`);
+    console.log(`✅ [TX #${index + 1}] Confirmed di block: ${receipt.blockNumber}`);
   } catch (error) {
-    console.error("❌ Gagal kirim:", error.message);
+    console.error(`❌ [TX #${index + 1}] Gagal:`, error.message);
   }
 }
 
-sendNativeTx();
+async function runTxs(index = 0) {
+  if (index >= TX_COUNT) {
+    console.log("🎉 Semua transaksi selesai.");
+    return;
+  }
 
-setInterval(() => {
-  sendNativeTx();
-}, TIMEFRAME * 1000);
+  await sendNativeTx(index);
+
+  setTimeout(() => {
+    runTxs(index + 1);
+  }, TIMEFRAME * 1000);
+}
+
+runTxs();
